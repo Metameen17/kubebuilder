@@ -16,7 +16,7 @@ limitations under the License.
 
 package cronjob
 
-const ControllerTest = `/*
+const controllerTest = `/*
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -148,7 +148,7 @@ var _ = Describe("CronJob controller", func() {
 			By("By checking the CronJob has zero active Jobs")
 			Consistently(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, cronjobLookupKey, createdCronjob)).To(Succeed())
-				g.Expect(createdCronjob.Status.Active).To(HaveLen(0))
+				g.Expect(createdCronjob.Status.Active).To(BeEmpty())
 			}, duration, interval).Should(Succeed())
 			/*
 				Next, we actually create a stubbed Job that will belong to our CronJob, as well as its downstream template specs.

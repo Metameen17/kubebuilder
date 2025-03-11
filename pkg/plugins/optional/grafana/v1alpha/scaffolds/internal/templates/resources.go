@@ -24,7 +24,7 @@ import (
 
 var _ machinery.Template = &ResourcesManifest{}
 
-// Kustomization scaffolds a file that defines the kustomization scheme for the prometheus folder
+// ResourcesManifest scaffolds a file that defines the kustomization scheme for the prometheus folder
 type ResourcesManifest struct {
 	machinery.TemplateMixin
 }
@@ -45,7 +45,6 @@ func (f *ResourcesManifest) SetTemplateDefaults() error {
 	return nil
 }
 
-// nolint: lll
 const controllerResourcesTemplate = `{
   "__inputs": [
     {

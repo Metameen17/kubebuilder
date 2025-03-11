@@ -56,7 +56,6 @@ type WebhookSuite struct { //nolint:maligned
 func (f *WebhookSuite) SetTemplateDefaults() error {
 	if f.Path == "" {
 		// Deprecated: Remove me when remove go/v4
-		// nolint:goconst
 		baseDir := "api"
 		if !f.IsLegacyPath {
 			baseDir = filepath.Join("internal", "webhook")
@@ -84,7 +83,7 @@ func (f *WebhookSuite) SetTemplateDefaults() error {
 	} else {
 		f.TemplateBody = fmt.Sprintf(webhookTestSuiteTemplate,
 			machinery.NewMarkerFor(f.Path, importMarker),
-			f.Resource.ImportAlias(), admissionImportAlias,
+			f.Resource.ImportAlias(),
 			machinery.NewMarkerFor(f.Path, addSchemeMarker),
 			machinery.NewMarkerFor(f.Path, addWebhookManagerMarker),
 			"%s",
@@ -149,10 +148,6 @@ func (f *WebhookSuite) GetCodeFragments() machinery.CodeFragmentsMap {
 
 	// Generate import code fragments
 	imports := make([]string, 0)
-	if !f.IsLegacyPath {
-		imports = append(imports, fmt.Sprintf(apiImportCodeFragment, f.Resource.ImportAlias(), f.Resource.Path))
-	}
-	imports = append(imports, fmt.Sprintf(apiImportCodeFragment, admissionImportAlias, admissionPath))
 
 	// Generate add scheme code fragments
 	addScheme := make([]string, 0)
@@ -160,8 +155,10 @@ func (f *WebhookSuite) GetCodeFragments() machinery.CodeFragmentsMap {
 	// Generate add webhookManager code fragments
 	addWebhookManager := make([]string, 0)
 	if f.IsLegacyPath {
+		imports = append(imports, fmt.Sprintf(apiImportCodeFragment, admissionImportAlias, admissionPath))
 		addWebhookManager = append(addWebhookManager, fmt.Sprintf(addWebhookManagerCodeFragmentLegacy, f.Resource.Kind))
 	} else {
+		imports = append(imports, fmt.Sprintf(apiImportCodeFragment, f.Resource.ImportAlias(), f.Resource.Path))
 		addWebhookManager = append(addWebhookManager, fmt.Sprintf(addWebhookManagerCodeFragment, f.Resource.Kind))
 	}
 
@@ -195,26 +192,26 @@ import (
 
     . "github.com/onsi/ginkgo/v2"
     . "github.com/onsi/gomega"
-	%s
+
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
-	apimachineryruntime "k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	%s
 )
 
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to
 // http://onsi.github.io/ginkgo/ to learn more about Ginkgo.
 
 var (
-	cancel context.CancelFunc
-	cfg *rest.Config
 	ctx context.Context
+	cancel context.CancelFunc
 	k8sClient client.Client
+	cfg *rest.Config
 	testEnv *envtest.Environment
 )
 
@@ -228,6 +225,12 @@ var _ = BeforeSuite(func() {
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
 
 	ctx, cancel = context.WithCancel(context.TODO())
+
+	var err error
+	err = %s.AddToScheme(scheme.Scheme)
+	Expect(err).NotTo(HaveOccurred())
+
+	%s
 
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
@@ -244,29 +247,19 @@ var _ = BeforeSuite(func() {
 		testEnv.BinaryAssetsDirectory = getFirstFoundEnvTestBinaryDir()
 	}
 
-	var err error
 	// cfg is defined in this file globally.
 	cfg, err = testEnv.Start()
 	Expect(err).NotTo(HaveOccurred())
 	Expect(cfg).NotTo(BeNil())
 
-	scheme := apimachineryruntime.NewScheme()
-	err = %s.AddToScheme(scheme)
-	Expect(err).NotTo(HaveOccurred())
-
-	err = %s.AddToScheme(scheme)
-	Expect(err).NotTo(HaveOccurred())
-
-	%s
-
-	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme})
+	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
 	Expect(err).NotTo(HaveOccurred())
 	Expect(k8sClient).NotTo(BeNil())
 
 	// start webhook server using Manager.
 	webhookInstallOptions := &testEnv.WebhookInstallOptions
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
-		Scheme:             scheme,
+		Scheme:             scheme.Scheme,
 		WebhookServer: webhook.NewServer(webhook.Options{
 			Host:               webhookInstallOptions.LocalServingHost,
 			Port:               webhookInstallOptions.LocalServingPort,

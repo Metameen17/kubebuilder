@@ -21,18 +21,19 @@ import (
 	"sigs.k8s.io/kubebuilder/v4/pkg/machinery"
 )
 
-var _ machinery.Template = &WebhookService{}
+var _ machinery.Template = &Service{}
 
-// WebhookService scaffolds the Service for webhooks in the Helm chart
-type WebhookService struct {
+// Service scaffolds the Service for webhooks in the Helm chart
+type Service struct {
 	machinery.TemplateMixin
+	machinery.ProjectNameMixin
 
 	// Force if true allows overwriting the scaffolded file
 	Force bool
 }
 
 // SetTemplateDefaults sets the default template configuration
-func (f *WebhookService) SetTemplateDefaults() error {
+func (f *Service) SetTemplateDefaults() error {
 	if f.Path == "" {
 		f.Path = filepath.Join("dist", "chart", "templates", "webhook", "service.yaml")
 	}
@@ -48,7 +49,7 @@ const webhookServiceTemplate = `{{` + "`" + `{{- if .Values.webhook.enable }}` +
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ "{{ include \"chart.name\" . }}" }}-webhook-service
+  name: {{ .ProjectName }}-webhook-service
   namespace: {{ "{{ .Release.Namespace }}" }}
   labels:
     {{ "{{- include \"chart.labels\" . | nindent 4 }}" }}

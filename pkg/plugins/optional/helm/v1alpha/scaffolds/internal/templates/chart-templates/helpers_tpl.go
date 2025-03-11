@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package chart_templates
+package charttemplates
 
 import (
 	"path/filepath"
@@ -43,7 +43,6 @@ func (f *HelmHelpers) SetTemplateDefaults() error {
 	return nil
 }
 
-// nolint:lll
 const helmHelpersTemplate = `{{` + "`" + `{{- define "chart.name" -}}` + "`" + `}}
 {{` + "`" + `{{- if .Chart }}` + "`" + `}}
   {{` + "`" + `{{- if .Chart.Name }}` + "`" + `}}

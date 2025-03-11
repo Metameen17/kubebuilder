@@ -26,10 +26,12 @@ import (
 	"sigs.k8s.io/kubebuilder/v4/pkg/machinery"
 )
 
+// CustomMetricsConfig represents the configuration for custom metrics
 type CustomMetricsConfig struct {
 	CustomMetrics []CustomMetricItem `json:"customMetrics"`
 }
 
+// CustomMetricItem defines the config items for the custom metrics
 type CustomMetricItem struct {
 	Metric string `json:"metric"`
 	Type   string `json:"type"`
@@ -39,7 +41,7 @@ type CustomMetricItem struct {
 
 var _ machinery.Template = &CustomMetricsDashManifest{}
 
-// Kustomization scaffolds a file that defines the kustomization scheme for the prometheus folder
+// CustomMetricsDashManifest scaffolds a file that defines the kustomization scheme for the prometheus folder
 type CustomMetricsDashManifest struct {
 	machinery.TemplateMixin
 
@@ -82,7 +84,6 @@ func (f *CustomMetricsDashManifest) createTemplate() (string, error) {
 	return outputTmpl.String(), nil
 }
 
-// nolint: lll
 const customMetricsDashTemplate = `{
   "__inputs": [
     {

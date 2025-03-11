@@ -18,7 +18,12 @@ issues:
 
 linters-settings:
   govet:
-    enable=fieldalignment: true
+    enable-all: true
+    disable:
+      - fieldalignment
+      - shadow
+  nolintlint:
+    allow-unused: false
   revive:
     rules:
       # The following rules are recommended https://github.com/mgechev/revive#recommended-configuration
@@ -28,19 +33,16 @@ linters-settings:
       - name: dot-imports
         arguments:
           # dot import should be ONLY allowed for ginkgo testing packages
-          allowedPackages:
-            - "github.com/onsi/ginkgo/v2"
-            - "github.com/onsi/gomega"
+          - allowedPackages:
+              - "github.com/onsi/ginkgo/v2"
+              - "github.com/onsi/gomega"
       - name: error-return
       - name: error-strings
       - name: error-naming
       - name: exported
-        disabled: true  # TODO: Investigate if it should be enabled. Disabled for now due to many findings.
       - name: if-return
-        disabled: true  # TODO: Investigate if it should be enabled. Disabled for now due to many findings.
       - name: increment-decrement
       - name: var-naming
-        disabled: true   # TODO: Investigate if it should be enabled. Disabled for now due to many findings.
       - name: var-declaration
       - name: package-comments
         disabled: true  # TODO: Investigate if it should be enabled. Disabled for now due to many findings.
@@ -51,7 +53,6 @@ linters-settings:
       - name: indent-error-flow
       - name: errorf
       - name: empty-block
-        disabled: true  # TODO: Investigate if it should be enabled. Disabled for now due to many findings.
       - name: superfluous-else
       - name: unused-parameter
       - name: unreachable-code
@@ -79,6 +80,7 @@ linters:
     - ineffassign
     - lll
     - misspell
+    - nolintlint
     - nakedret
     - prealloc
     - revive
@@ -87,3 +89,4 @@ linters:
     - unconvert
     - unparam
     - unused
+

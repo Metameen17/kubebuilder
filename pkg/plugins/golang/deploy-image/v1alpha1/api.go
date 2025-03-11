@@ -63,14 +63,14 @@ type createAPISubcommand struct {
 }
 
 func (p *createAPISubcommand) UpdateMetadata(cliMeta plugin.CLIMetadata, subcmdMeta *plugin.SubcommandMetadata) {
-	// nolint: lll
+	//nolint:lll
 	subcmdMeta.Description = `Scaffold the code implementation to deploy and manage your Operand which is represented by the API informed and will be reconciled by its controller. This plugin will generate the code implementation to help you out.
 
 	Note: In general, it’s recommended to have one controller responsible for managing each API created for the project to properly follow the design goals set by Controller Runtime(https://github.com/kubernetes-sigs/controller-runtime).
 
 	This plugin will work as the common behaviour of the flag --force and will scaffold the API and controller always. Use core types or external APIs is not officially support by default with.
 `
-	// nolint: lll
+	//nolint:lll
 	subcmdMeta.Examples = fmt.Sprintf(`  # Create a frigates API with Group: ship, Version: v1beta1, Kind: Frigate to represent the
 	Image: example.com/frigate:v0.0.1 and its controller with a code to deploy and manage this Operand.
 
@@ -192,32 +192,27 @@ func (p *createAPISubcommand) Scaffold(fs machinery.Filesystem) error {
 	// Track the resources following a declarative approach
 	cfg := PluginConfig{}
 	if err := p.config.DecodePluginConfig(pluginKey, &cfg); errors.As(err, &config.UnsupportedFieldError{}) {
-		// Config doesn't support per-plugin configuration, so we can't track them
-	} else {
-		// Fail unless they key wasn't found, which just means it is the first resource tracked
-		if err != nil && !errors.As(err, &config.PluginKeyNotFoundError{}) {
-			return err
-		}
-		configDataOptions := options{
-			Image:            p.image,
-			ContainerCommand: p.imageContainerCommand,
-			ContainerPort:    p.imageContainerPort,
-			RunAsUser:        p.runAsUser,
-		}
-		cfg.Resources = append(cfg.Resources, ResourceData{
-			Group:   p.resource.GVK.Group,
-			Domain:  p.resource.GVK.Domain,
-			Version: p.resource.GVK.Version,
-			Kind:    p.resource.GVK.Kind,
-			Options: configDataOptions,
-		},
-		)
-		if err := p.config.EncodePluginConfig(pluginKey, cfg); err != nil {
-			return err
-		}
+		// Skip tracking as the config doesn't support per-plugin configuration
+		return nil
+	} else if err != nil && !errors.As(err, &config.PluginKeyNotFoundError{}) {
+		// Fail unless the key wasn't found, which just means it is the first resource tracked
+		return err
 	}
 
-	return nil
+	configDataOptions := options{
+		Image:            p.image,
+		ContainerCommand: p.imageContainerCommand,
+		ContainerPort:    p.imageContainerPort,
+		RunAsUser:        p.runAsUser,
+	}
+	cfg.Resources = append(cfg.Resources, ResourceData{
+		Group:   p.resource.GVK.Group,
+		Domain:  p.resource.GVK.Domain,
+		Version: p.resource.GVK.Version,
+		Kind:    p.resource.GVK.Kind,
+		Options: configDataOptions,
+	})
+	return p.config.EncodePluginConfig(pluginKey, cfg)
 }
 
 func (p *createAPISubcommand) PostScaffold() error {

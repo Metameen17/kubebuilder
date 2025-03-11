@@ -64,7 +64,6 @@ func (f *Readme) SetTemplateDefaults() error {
 	return nil
 }
 
-//nolint:lll
 const readmeFileTemplate = `# {{ .ProjectName }}
 // TODO(user): Add simple overview of use/purpose
 
@@ -74,7 +73,7 @@ const readmeFileTemplate = `# {{ .ProjectName }}
 ## Getting Started
 
 ### Prerequisites
-- go version v1.22.0+
+- go version v1.23.0+
 - docker version 17.03+.
 - kubectl version v1.11.3+.
 - Access to a Kubernetes v1.11.3+ cluster.

@@ -46,15 +46,15 @@ help: ## Display this help
 ##@ Build
 
 LD_FLAGS=-ldflags " \
-    -X main.kubeBuilderVersion=$(shell git describe --tags --dirty --broken) \
-    -X main.goos=$(shell go env GOOS) \
-    -X main.goarch=$(shell go env GOARCH) \
-    -X main.gitCommit=$(shell git rev-parse HEAD) \
-    -X main.buildDate=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ') \
+    -X sigs.k8s.io/kubebuilder/v4/cmd.kubeBuilderVersion=$(shell git describe --tags --dirty --broken) \
+    -X sigs.k8s.io/kubebuilder/v4/cmd.goos=$(shell go env GOOS) \
+    -X sigs.k8s.io/kubebuilder/v4/cmd.goarch=$(shell go env GOARCH) \
+    -X sigs.k8s.io/kubebuilder/v4/cmd.gitCommit=$(shell git rev-parse HEAD) \
+    -X sigs.k8s.io/kubebuilder/v4/cmd.buildDate=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ') \
     "
 .PHONY: build
 build: ## Build the project locally
-	go build $(LD_FLAGS) -o bin/kubebuilder ./cmd
+	go build $(LD_FLAGS) -o bin/kubebuilder
 
 .PHONY: install
 install: build ## Build and install the binary with the current source code. Use it to test your changes locally.
@@ -64,7 +64,7 @@ install: build ## Build and install the binary with the current source code. Use
 ##@ Development
 
 .PHONY: generate
-generate: generate-testdata generate-docs ## Update/generate all mock data. You should run this commands to update the mock data after your changes.
+generate: generate-testdata generate-docs update-k8s-version ## Update/generate all mock data. You should run this commands to update the mock data after your changes.
 	go mod tidy
 	make remove-spaces
 
@@ -89,9 +89,16 @@ generate-docs: ## Update/generate the docs
 	./hack/docs/generate.sh
 
 .PHONY: generate-charts
-generate-charts: build ## Re-generate the helm chart testdata only
+generate-charts: build ## Re-generate the helm chart testdata and docs samples
 	rm -rf testdata/project-v4-with-plugins/dist/chart
+	rm -rf docs/book/src/getting-started/testdata/project/dist/chart
+	rm -rf docs/book/src/cronjob-tutorial/testdata/project/dist/chart
+	rm -rf docs/book/src/multiversion-tutorial/testdata/project/dist/chart
+
 	(cd testdata/project-v4-with-plugins && ../../bin/kubebuilder edit --plugins=helm/v1-alpha)
+	(cd docs/book/src/getting-started/testdata/project && ../../../../../../bin/kubebuilder edit --plugins=helm/v1-alpha)
+	(cd docs/book/src/cronjob-tutorial/testdata/project && ../../../../../../bin/kubebuilder edit --plugins=helm/v1-alpha)
+	(cd docs/book/src/multiversion-tutorial/testdata/project && ../../../../../../bin/kubebuilder edit --plugins=helm/v1-alpha)
 
 .PHONY: check-docs
 check-docs: ## Run the script to ensure that the docs are updated
@@ -105,6 +112,10 @@ lint: golangci-lint yamllint ## Run golangci-lint linter & yamllint
 lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
 	$(GOLANGCI_LINT) run --fix
 
+.PHONY: lint-config
+lint-config: golangci-lint ## Verify golangci-lint linter configuration
+	$(GOLANGCI_LINT) config verify
+
 .PHONY: yamllint
 yamllint:
 	@files=$$(find testdata -name '*.yaml' ! -path 'testdata/*/dist/*'); \
@@ -114,7 +125,7 @@ GOLANGCI_LINT = $(shell pwd)/bin/golangci-lint
 golangci-lint:
 	@[ -f $(GOLANGCI_LINT) ] || { \
 	set -e ;\
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell dirname $(GOLANGCI_LINT)) v1.61.0 ;\
+	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell dirname $(GOLANGCI_LINT)) v1.63.4 ;\
 	}
 
 .PHONY: apidiff
@@ -189,3 +200,15 @@ install-helm: ## Install the latest version of Helm locally
 .PHONY: helm-lint
 helm-lint: install-helm ## Lint the Helm chart in testdata
 	helm lint testdata/project-v4-with-plugins/dist/chart
+
+K8S_VERSION ?= $(shell go list -m -modfile=./testdata/project-v4/go.mod -f "{{ .Version }}" k8s.io/api | awk -F'[v.]' '{printf "1.%d.%d", $$3, $$4}')
+.PHONY: update-k8s-version
+update-k8s-version: ## Update Kubernetes API version in version.go and .goreleaser.yml
+	@if [ -z "$(K8S_VERSION)" ]; then echo "Error: K8S_VERSION is empty"; exit 1; fi
+	@echo "Updating Kubernetes version to $(K8S_VERSION)"
+	@# Update version.go
+	@sed -i.bak 's/kubernetesVendorVersion = .*/kubernetesVendorVersion = "$(K8S_VERSION)"/' cmd/version.go
+	@# Update .goreleaser.yml
+	@sed -i.bak 's/KUBERNETES_VERSION=.*/KUBERNETES_VERSION=$(K8S_VERSION)/' build/.goreleaser.yml
+	@# Clean up backup files
+	@find . -name "*.bak" -type f -delete

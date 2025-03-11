@@ -29,7 +29,8 @@ var _ machinery.Template = &SuiteTest{}
 var _ machinery.Inserter = &SuiteTest{}
 
 // SuiteTest scaffolds the file that sets up the controller tests
-// nolint:maligned
+//
+//nolint:maligned
 type SuiteTest struct {
 	machinery.TemplateMixin
 	machinery.MultiGroupMixin
@@ -152,11 +153,13 @@ import (
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to
 // http://onsi.github.io/ginkgo/ to learn more about Ginkgo.
 
-var cfg *rest.Config
-var k8sClient client.Client
-var testEnv *envtest.Environment
-var ctx context.Context
-var cancel context.CancelFunc
+var (
+	ctx context.Context
+	cancel context.CancelFunc
+	testEnv *envtest.Environment
+	cfg *rest.Config
+	k8sClient client.Client
+)
 
 func TestControllers(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -169,6 +172,9 @@ var _ = BeforeSuite(func() {
 
 	ctx, cancel = context.WithCancel(context.TODO())
 
+	var err error
+	%s
+
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
 		CRDDirectoryPaths:     []string{filepath.Join({{ .CRDDirectoryRelativePath }}, "config", "crd", "bases")},
@@ -180,18 +186,14 @@ var _ = BeforeSuite(func() {
 		testEnv.BinaryAssetsDirectory = getFirstFoundEnvTestBinaryDir()
 	}
 
-	var err error
 	// cfg is defined in this file globally.
 	cfg, err = testEnv.Start()
 	Expect(err).NotTo(HaveOccurred())
 	Expect(cfg).NotTo(BeNil())
 
-	%s
-
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
 	Expect(err).NotTo(HaveOccurred())
 	Expect(k8sClient).NotTo(BeNil())
-
 })
 
 var _ = AfterSuite(func() {
@@ -207,7 +209,7 @@ var _ = AfterSuite(func() {
 // Makefile targets, the 'BinaryAssetsDirectory' must be explicitly configured.
 //
 // This function streamlines the process by finding the required binaries, similar to
-// setting the 'KUBEBUILDER_ASSETS' environment variable. To ensure the binaries are 
+// setting the 'KUBEBUILDER_ASSETS' environment variable. To ensure the binaries are
 // properly set up, run 'make setup-envtest' beforehand.
 func getFirstFoundEnvTestBinaryDir() string {
 	basePath := filepath.Join({{ .CRDDirectoryRelativePath }}, "bin", "k8s")

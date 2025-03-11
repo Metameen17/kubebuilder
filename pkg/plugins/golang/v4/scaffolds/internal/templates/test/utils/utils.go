@@ -22,11 +22,13 @@ import (
 
 var _ machinery.Template = &Utils{}
 
+// Utils define the template for the utils file
 type Utils struct {
 	machinery.TemplateMixin
 	machinery.BoilerplateMixin
 }
 
+// SetTemplateDefaults set the defaults for its template
 func (f *Utils) SetTemplateDefaults() error {
 	if f.Path == "" {
 		f.Path = "test/utils/utils.go"
@@ -57,8 +59,8 @@ const (
 	prometheusOperatorURL     = "https://github.com/prometheus-operator/prometheus-operator/" +
 		"releases/download/%s/bundle.yaml"
 
-	certmanagerVersion = "v1.16.0"
-	certmanagerURLTmpl = "https://github.com/jetstack/cert-manager/releases/download/%s/cert-manager.yaml"
+	certmanagerVersion = "v1.16.3"
+	certmanagerURLTmpl = "https://github.com/cert-manager/cert-manager/releases/download/%s/cert-manager.yaml"
 )
 
 func warnError(err error) {

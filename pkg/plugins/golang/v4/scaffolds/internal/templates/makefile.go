@@ -35,6 +35,8 @@ type Makefile struct {
 	ControllerToolsVersion string
 	// Kustomize version to use in the project
 	KustomizeVersion string
+	// golangci-lint version to use in the project
+	GolangciLintVersion string
 	// ControllerRuntimeVersion version to be used to download the envtest setup script
 	ControllerRuntimeVersion string
 	// EnvtestVersion store the name of the verions to be used to install setup-envtest
@@ -140,8 +142,7 @@ test: manifests generate fmt vet setup-envtest ## Run tests.
 
 # TODO(user): To use a different vendor for e2e tests, modify the setup under 'tests/e2e'.
 # The default setup assumes Kind is pre-installed and builds/loads the Manager Docker image locally.
-# Prometheus and CertManager are installed by default; skip with:
-# - PROMETHEUS_INSTALL_SKIP=true
+# CertManager is installed by default; skip with:
 # - CERT_MANAGER_INSTALL_SKIP=true
 .PHONY: test-e2e
 test-e2e: manifests generate fmt vet ## Run the e2e tests. Expected an isolated environment using Kind.
@@ -162,6 +163,10 @@ lint: golangci-lint ## Run golangci-lint linter
 .PHONY: lint-fix
 lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
 	$(GOLANGCI_LINT) run --fix
+
+.PHONY: lint-config
+lint-config: golangci-lint ## Verify golangci-lint linter configuration
+	$(GOLANGCI_LINT) config verify
 
 ##@ Build
 
@@ -251,7 +256,7 @@ CONTROLLER_TOOLS_VERSION ?= {{ .ControllerToolsVersion }}
 ENVTEST_VERSION ?= $(shell go list -m -f "{{ "{{ .Version }}" }}" sigs.k8s.io/controller-runtime | awk -F'[v.]' '{printf "release-%d.%d", $$2, $$3}')
 #ENVTEST_K8S_VERSION is the version of Kubernetes to use for setting up ENVTEST binaries (i.e. 1.31)
 ENVTEST_K8S_VERSION ?= $(shell go list -m -f "{{ "{{ .Version }}" }}" k8s.io/api | awk -F'[v.]' '{printf "1.%d", $$3}')
-GOLANGCI_LINT_VERSION ?= v1.61.0
+GOLANGCI_LINT_VERSION ?= {{ .GolangciLintVersion }}
 
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.

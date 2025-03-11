@@ -36,13 +36,14 @@ type Test struct {
 	machinery.ProjectNameMixin
 }
 
+// SetTemplateDefaults set defaults for this template
 func (f *Test) SetTemplateDefaults() error {
 	if f.Path == "" {
 		f.Path = filepath.Join("test", "e2e", "e2e_test.go")
 	}
 
 	// This is where the template body is defined with markers
-	f.TemplateBody = TestTemplate
+	f.TemplateBody = testCodeTemplate
 
 	return nil
 }
@@ -142,7 +143,6 @@ const mutatingWebhookChecksFragment = `It("should have CA injection for mutating
 
 `
 
-// nolint:lll
 const validatingWebhookChecksFragment = `It("should have CA injection for validating webhooks", func() {
 	By("checking CA injection for validating webhooks")
 	verifyCAInjection := func(g Gomega) {
@@ -175,7 +175,7 @@ const conversionWebhookChecksFragment = `It("should have CA injection for %[1]s 
 
 `
 
-var TestTemplate = `{{ .Boilerplate }}
+var testCodeTemplate = `{{ .Boilerplate }}
 
 
 package e2e
@@ -207,12 +207,19 @@ var _ = Describe("Manager", Ordered, func() {
 	var controllerPodName string
 
 	// Before running the tests, set up the environment by creating the namespace,
-	// installing CRDs, and deploying the controller.
+	// enforce the restricted security policy to the namespace, installing CRDs,
+	// and deploying the controller.
 	BeforeAll(func() {
 		By("creating manager namespace")
 		cmd := exec.Command("kubectl", "create", "ns", namespace)
 		_, err := utils.Run(cmd)
 		Expect(err).NotTo(HaveOccurred(), "Failed to create namespace")
+
+		By("labeling the namespace to enforce the restricted security policy")
+		cmd = exec.Command("kubectl", "label", "--overwrite", "ns", namespace,
+			"pod-security.kubernetes.io/enforce=restricted")
+		_, err = utils.Run(cmd)
+		Expect(err).NotTo(HaveOccurred(), "Failed to label namespace with restricted policy")
 
 		By("installing CRDs")
 		cmd = exec.Command("make", "install")
@@ -338,11 +345,6 @@ var _ = Describe("Manager", Ordered, func() {
 			_, err = utils.Run(cmd)
 			Expect(err).NotTo(HaveOccurred(), "Metrics service should exist")
 
-			By("validating that the ServiceMonitor for Prometheus is applied in the namespace")
-			cmd = exec.Command("kubectl", "get", "ServiceMonitor", "-n", namespace)
-			_, err = utils.Run(cmd)
-			Expect(err).NotTo(HaveOccurred(), "ServiceMonitor should exist")
-
 			By("getting the service account token")
 			token, err := serviceAccountToken()
 			Expect(err).NotTo(HaveOccurred())
@@ -370,10 +372,30 @@ var _ = Describe("Manager", Ordered, func() {
 			By("creating the curl-metrics pod to access the metrics endpoint")
 			cmd = exec.Command("kubectl", "run", "curl-metrics", "--restart=Never",
 				"--namespace", namespace,
-				"--image=curlimages/curl:7.78.0",
-				"--", "/bin/sh", "-c", fmt.Sprintf(
-					"curl -v -k -H 'Authorization: Bearer %s' https://%s.%s.svc.cluster.local:8443/metrics",
-					token, metricsServiceName, namespace))
+				"--image=curlimages/curl:latest",
+				"--overrides",
+				fmt.Sprintf(` + "`" + `{
+					"spec": {
+						"containers": [{
+							"name": "curl",
+							"image": "curlimages/curl:latest",
+							"command": ["/bin/sh", "-c"],
+							"args": ["curl -v -k -H 'Authorization: Bearer %s' https://%s.%s.svc.cluster.local:8443/metrics"],
+							"securityContext": {
+								"allowPrivilegeEscalation": false,
+								"capabilities": {
+									"drop": ["ALL"]
+								},
+								"runAsNonRoot": true,
+								"runAsUser": 1000,
+								"seccompProfile": {
+									"type": "RuntimeDefault"
+								}
+							}
+						}],
+						"serviceAccount": "%s"
+					}
+				}` + "`" + `, token, metricsServiceName, namespace, serviceAccountName))
 			_, err = utils.Run(cmd)
 			Expect(err).NotTo(HaveOccurred(), "Failed to create curl-metrics pod")
 

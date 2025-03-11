@@ -25,11 +25,6 @@ import (
 	. "github.com/onsi/gomega"
 
 	pluginutil "sigs.k8s.io/kubebuilder/v4/pkg/plugin/util"
-
-	//nolint:golint
-	// nolint:revive
-	//nolint:golint
-	// nolint:revive
 	"sigs.k8s.io/kubebuilder/v4/test/e2e/utils"
 )
 
@@ -47,14 +42,14 @@ func GenerateV4(kbc *utils.TestContext) {
 		"--programmatic-validation",
 		"--make=false",
 	)
-	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+	Expect(err).NotTo(HaveOccurred(), "Failed to scaffolding mutating webhook")
 
 	By("implementing the mutating and validating webhooks")
 	webhookFilePath := filepath.Join(
 		kbc.Dir, "internal/webhook", kbc.Version,
 		fmt.Sprintf("%s_webhook.go", strings.ToLower(kbc.Kind)))
 	err = utils.ImplementWebhooks(webhookFilePath, strings.ToLower(kbc.Kind))
-	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+	Expect(err).NotTo(HaveOccurred(), "Failed to implement webhooks")
 
 	scaffoldConversionWebhook(kbc)
 
@@ -65,17 +60,18 @@ func GenerateV4(kbc *utils.TestContext) {
 		filepath.Join(kbc.Dir, "config", "default", "kustomization.yaml"),
 		"#- ../prometheus", "#")).To(Succeed())
 	ExpectWithOffset(1, pluginutil.UncommentCode(filepath.Join(kbc.Dir, "config", "default", "kustomization.yaml"),
+		`#replacements:`, "#")).To(Succeed())
+	ExpectWithOffset(1, pluginutil.UncommentCode(filepath.Join(kbc.Dir, "config", "default", "kustomization.yaml"),
 		certManagerTarget, "#")).To(Succeed())
 	ExpectWithOffset(1, pluginutil.UncommentCode(
 		filepath.Join(kbc.Dir, "config", "prometheus", "kustomization.yaml"),
-		monitorTlsPatch, "#")).To(Succeed())
+		monitorTLSPatch, "#")).To(Succeed())
 	ExpectWithOffset(1, pluginutil.UncommentCode(
 		filepath.Join(kbc.Dir, "config", "default", "kustomization.yaml"),
-		`#- path: certmanager_metrics_manager_patch.yaml`, "#")).To(Succeed())
+		metricsCertPatch, "#")).To(Succeed())
 	ExpectWithOffset(1, pluginutil.UncommentCode(
-		filepath.Join(kbc.Dir, "cmd", "main.go"),
-		tlsConfigManager, "// ")).To(Succeed())
-
+		filepath.Join(kbc.Dir, "config", "default", "kustomization.yaml"),
+		metricsCertReplaces, "#")).To(Succeed())
 	uncommentKustomizeCoversion(kbc)
 
 }
@@ -94,14 +90,14 @@ func GenerateV4WithoutMetrics(kbc *utils.TestContext) {
 		"--programmatic-validation",
 		"--make=false",
 	)
-	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+	Expect(err).NotTo(HaveOccurred(), "Failed to scaffolding mutating webhook")
 
 	By("implementing the mutating and validating webhooks")
 	webhookFilePath := filepath.Join(
 		kbc.Dir, "internal/webhook", kbc.Version,
 		fmt.Sprintf("%s_webhook.go", strings.ToLower(kbc.Kind)))
 	err = utils.ImplementWebhooks(webhookFilePath, strings.ToLower(kbc.Kind))
-	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+	Expect(err).NotTo(HaveOccurred(), "Failed to implement webhooks")
 
 	scaffoldConversionWebhook(kbc)
 
@@ -111,6 +107,8 @@ func GenerateV4WithoutMetrics(kbc *utils.TestContext) {
 	ExpectWithOffset(1, pluginutil.UncommentCode(
 		filepath.Join(kbc.Dir, "config", "default", "kustomization.yaml"),
 		"#- ../prometheus", "#")).To(Succeed())
+	ExpectWithOffset(1, pluginutil.UncommentCode(filepath.Join(kbc.Dir, "config", "default", "kustomization.yaml"),
+		`#replacements:`, "#")).To(Succeed())
 	ExpectWithOffset(1, pluginutil.UncommentCode(filepath.Join(kbc.Dir, "config", "default", "kustomization.yaml"),
 		certManagerTarget, "#")).To(Succeed())
 	// Disable metrics
@@ -155,14 +153,14 @@ func GenerateV4WithNetworkPolicies(kbc *utils.TestContext) {
 		"--programmatic-validation",
 		"--make=false",
 	)
-	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+	Expect(err).NotTo(HaveOccurred(), "Failed to scaffolding mutating webhook")
 
 	By("implementing the mutating and validating webhooks")
 	webhookFilePath := filepath.Join(
 		kbc.Dir, "internal/webhook", kbc.Version,
 		fmt.Sprintf("%s_webhook.go", strings.ToLower(kbc.Kind)))
 	err = utils.ImplementWebhooks(webhookFilePath, strings.ToLower(kbc.Kind))
-	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+	Expect(err).NotTo(HaveOccurred(), "Failed to implement webhooks")
 
 	scaffoldConversionWebhook(kbc)
 
@@ -177,18 +175,21 @@ func GenerateV4WithNetworkPolicies(kbc *utils.TestContext) {
 		metricsTarget, "#")).To(Succeed())
 	ExpectWithOffset(1, pluginutil.UncommentCode(
 		filepath.Join(kbc.Dir, "config", "default", "kustomization.yaml"),
-		`#- path: certmanager_metrics_manager_patch.yaml`, "#")).To(Succeed())
+		metricsCertPatch, "#")).To(Succeed())
+	ExpectWithOffset(1, pluginutil.UncommentCode(
+		filepath.Join(kbc.Dir, "config", "default", "kustomization.yaml"),
+		metricsCertReplaces, "#")).To(Succeed())
 	ExpectWithOffset(1, pluginutil.UncommentCode(
 		filepath.Join(kbc.Dir, "config", "prometheus", "kustomization.yaml"),
-		monitorTlsPatch, "#")).To(Succeed())
-	ExpectWithOffset(1, pluginutil.UncommentCode(
-		filepath.Join(kbc.Dir, "cmd", "main.go"),
-		tlsConfigManager, "// ")).To(Succeed())
+		monitorTLSPatch, "#")).To(Succeed())
+
 	By("uncomment kustomization.yaml to enable network policy")
 	ExpectWithOffset(1, pluginutil.UncommentCode(
 		filepath.Join(kbc.Dir, "config", "default", "kustomization.yaml"),
 		"#- ../network-policy", "#")).To(Succeed())
 
+	ExpectWithOffset(1, pluginutil.UncommentCode(filepath.Join(kbc.Dir, "config", "default", "kustomization.yaml"),
+		`#replacements:`, "#")).To(Succeed())
 	ExpectWithOffset(1, pluginutil.UncommentCode(filepath.Join(kbc.Dir, "config", "default", "kustomization.yaml"),
 		certManagerTarget, "#")).To(Succeed())
 
@@ -216,7 +217,7 @@ func creatingAPI(kbc *utils.TestContext) {
 		"--controller",
 		"--make=false",
 	)
-	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+	Expect(err).NotTo(HaveOccurred(), "Failed to create API")
 
 	By("implementing the API")
 	ExpectWithOffset(1, pluginutil.InsertCode(
@@ -235,16 +236,14 @@ func initingTheProject(kbc *utils.TestContext) {
 		"--project-version", "3",
 		"--domain", kbc.Domain,
 	)
-	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+	Expect(err).NotTo(HaveOccurred(), "Failed to initialize project")
 }
 
 const metricsTarget = `- path: manager_metrics_patch.yaml
   target:
     kind: Deployment`
 
-//nolint:lll
-const certManagerTarget = `#replacements:
-# - source: # Uncomment the following block if you have any webhook
+const certManagerTarget = `# - source: # Uncomment the following block if you have any webhook
 #     kind: Service
 #     version: v1
 #     name: webhook-service
@@ -254,6 +253,7 @@ const certManagerTarget = `#replacements:
 #         kind: Certificate
 #         group: cert-manager.io
 #         version: v1
+#         name: serving-cert
 #       fieldPaths:
 #         - .spec.dnsNames.0
 #         - .spec.dnsNames.1
@@ -271,6 +271,7 @@ const certManagerTarget = `#replacements:
 #         kind: Certificate
 #         group: cert-manager.io
 #         version: v1
+#         name: serving-cert
 #       fieldPaths:
 #         - .spec.dnsNames.0
 #         - .spec.dnsNames.1
@@ -298,7 +299,7 @@ const certManagerTarget = `#replacements:
 #     kind: Certificate
 #     group: cert-manager.io
 #     version: v1
-#     name: serving-cert # This name should match the one in certificate.yaml
+#     name: serving-cert
 #     fieldPath: .metadata.name
 #   targets:
 #     - select:
@@ -314,7 +315,7 @@ const certManagerTarget = `#replacements:
 #     kind: Certificate
 #     group: cert-manager.io
 #     version: v1
-#     name: serving-cert # This name should match the one in certificate.yaml
+#     name: serving-cert
 #     fieldPath: .metadata.namespace # Namespace of the certificate CR
 #   targets:
 #     - select:
@@ -329,7 +330,7 @@ const certManagerTarget = `#replacements:
 #     kind: Certificate
 #     group: cert-manager.io
 #     version: v1
-#     name: serving-cert # This name should match the one in certificate.yaml
+#     name: serving-cert
 #     fieldPath: .metadata.name
 #   targets:
 #     - select:
@@ -345,7 +346,7 @@ const certNamespace = `# - source: # Uncomment the following block if you have a
 #     kind: Certificate
 #     group: cert-manager.io
 #     version: v1
-#     name: serving-cert # This name should match the one in certificate.yaml
+#     name: serving-cert
 #     fieldPath: .metadata.namespace # Namespace of the certificate CR
 #   targets: # Do not remove or uncomment the following scaffold marker; required to generate code for target CRD.
 #     - select:
@@ -362,7 +363,7 @@ const certName = `# - source:
 #     kind: Certificate
 #     group: cert-manager.io
 #     version: v1
-#     name: serving-cert # This name should match the one in certificate.yaml
+#     name: serving-cert
 #     fieldPath: .metadata.name
 #   targets: # Do not remove or uncomment the following scaffold marker; required to generate code for target CRD.
 #     - select:
@@ -447,11 +448,71 @@ func uncommentKustomizeCoversion(kbc *utils.TestContext) {
 		fmt.Sprintf(certName, kbc.Group, kbc.Domain), "#")).To(Succeed())
 }
 
-const monitorTlsPatch = `#patches:
+const monitorTLSPatch = `#patches:
 #  - path: monitor_tls_patch.yaml
 #    target:
 #      kind: ServiceMonitor`
 
-const tlsConfigManager = `// metricsServerOptions.CertDir = "/tmp/k8s-metrics-server/metrics-certs"
-		// metricsServerOptions.CertName = "tls.crt"
-		// metricsServerOptions.KeyName = "tls.key"`
+const metricsCertPatch = `#- path: cert_metrics_manager_patch.yaml
+#  target:
+#    kind: Deployment`
+
+const metricsCertReplaces = `# - source: # Uncomment the following block to enable certificates for metrics
+#     kind: Service
+#     version: v1
+#     name: controller-manager-metrics-service
+#     fieldPath: metadata.name
+#   targets:
+#     - select:
+#         kind: Certificate
+#         group: cert-manager.io
+#         version: v1
+#         name: metrics-certs
+#       fieldPaths:
+#         - spec.dnsNames.0
+#         - spec.dnsNames.1
+#       options:
+#         delimiter: '.'
+#         index: 0
+#         create: true
+#     - select: # Uncomment the following to set the Service name for TLS config in Prometheus ServiceMonitor
+#         kind: ServiceMonitor
+#         group: monitoring.coreos.com
+#         version: v1
+#         name: controller-manager-metrics-monitor
+#       fieldPaths:
+#         - spec.endpoints.0.tlsConfig.serverName
+#       options:
+#         delimiter: '.'
+#         index: 0
+#         create: true
+#
+# - source:
+#     kind: Service
+#     version: v1
+#     name: controller-manager-metrics-service
+#     fieldPath: metadata.namespace
+#   targets:
+#     - select:
+#         kind: Certificate
+#         group: cert-manager.io
+#         version: v1
+#         name: metrics-certs
+#       fieldPaths:
+#         - spec.dnsNames.0
+#         - spec.dnsNames.1
+#       options:
+#         delimiter: '.'
+#         index: 1
+#         create: true
+#     - select: # Uncomment the following to set the Service namespace for TLS in Prometheus ServiceMonitor
+#         kind: ServiceMonitor
+#         group: monitoring.coreos.com
+#         version: v1
+#         name: controller-manager-metrics-monitor
+#       fieldPaths:
+#         - spec.endpoints.0.tlsConfig.serverName
+#       options:
+#         delimiter: '.'
+#         index: 1
+#         create: true`

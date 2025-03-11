@@ -17,6 +17,7 @@ limitations under the License.
 package scaffolds
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -36,10 +37,12 @@ import (
 )
 
 const (
+	// GolangciLintVersion is the golangci-lint version to be used in the project
+	GolangciLintVersion = "v1.63.4"
 	// ControllerRuntimeVersion is the kubernetes-sigs/controller-runtime version to be used in the project
-	ControllerRuntimeVersion = "v0.19.1"
+	ControllerRuntimeVersion = "v0.20.2"
 	// ControllerToolsVersion is the kubernetes-sigs/controller-tools version to be used in the project
-	ControllerToolsVersion = "v0.16.5"
+	ControllerToolsVersion = "v0.17.2"
 
 	imageName = "controller:latest"
 )
@@ -112,7 +115,15 @@ func (s *initScaffolder) Scaffold() error {
 
 		boilerplate, err := afero.ReadFile(s.fs.FS, s.boilerplatePath)
 		if err != nil {
-			return err
+			if errors.Is(err, afero.ErrFileNotFound) {
+				log.Warnf("Unable to find %s: %s.\n"+"This file is used to generate the license header in the project.\n"+
+					"Note that controller-gen will also use this. Therefore, ensure that you "+
+					"add the license file or configure your project accordingly.",
+					s.boilerplatePath, err)
+				boilerplate = []byte("")
+			} else {
+				return fmt.Errorf("unable to load boilerplate: %w", err)
+			}
 		}
 		// Initialize the machinery.Scaffold that will write the files to disk
 		scaffold = machinery.NewScaffold(s.fs,
@@ -154,6 +165,7 @@ func (s *initScaffolder) Scaffold() error {
 			BoilerplatePath:          s.boilerplatePath,
 			ControllerToolsVersion:   ControllerToolsVersion,
 			KustomizeVersion:         kustomizeVersion,
+			GolangciLintVersion:      GolangciLintVersion,
 			ControllerRuntimeVersion: ControllerRuntimeVersion,
 			EnvtestVersion:           getControllerRuntimeReleaseBranch(),
 		},
@@ -166,7 +178,9 @@ func (s *initScaffolder) Scaffold() error {
 		&e2e.SuiteTest{},
 		&github.E2eTestCi{},
 		&github.TestCi{},
-		&github.LintCi{},
+		&github.LintCi{
+			GolangciLintVersion: GolangciLintVersion,
+		},
 		&utils.Utils{},
 		&templates.DevContainer{},
 		&templates.DevContainerPostInstallScript{},
